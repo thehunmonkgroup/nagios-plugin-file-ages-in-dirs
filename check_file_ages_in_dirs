@@ -10,7 +10,7 @@ PROGPATH=`dirname $0`
 
 print_usage() {
     echo "
-Usage: check_file_ages_in_dirs --dirs | -d <directories> [-w <max_age>] [-c <max_age>] [-W <num_files>] [-C <num_files>] [-t <time_unit>] [-s] [-V] [--check-dirs] [--base-dir <directory>]
+Usage: check_file_ages_in_dirs --dirs | -d <directories> [-w <max_age>] [-c <max_age>] [-W <num_files>] [-C <num_files>] [-t <time_unit>] [-I <files>] [-s] [-V] [--check-dirs] [--base-dir <directory>]
 Usage: check_file_ages_in_dirs --help | -h
 
 Description:
@@ -45,6 +45,8 @@ The following arguments are accepted:
 
   -t              (Optional) The time unit used for the -w and -c values.  Must
                   be one of: seconds, minutes, hours, days.  Defaults to hours.
+
+  -I              (Optional) A space separated list of files to ignore.
 
   -s              (Optional) Print a summary of OK, Warning and Critical files
                   Cannot be used together with -V (Verbose)
@@ -130,6 +132,7 @@ verbose=
 summary=
 num_warning=0
 num_critical=0
+ignore_files=
 check_dirs=
 base_dir=
 
@@ -170,6 +173,10 @@ while test -n "$1"; do
       ;;
     -t)
       time_unit=$2
+      shift
+      ;;
+    -I)
+      ignore_files=$2
       shift
       ;;
     -s)
@@ -273,6 +280,20 @@ OUTPUT=
 CURRENT_TIME=`date +%s`
 OS_DISTRO=`uname -s`
 
+# Build type list.
+file_types="-type f"
+if [ -n "$check_dirs" ]; then
+  file_types="( -type f -or -type d )"
+fi
+
+# Build ignore list.
+ignore=""
+for file in $ignore_files
+do
+  ignore="$ignore ! -name $file"
+done
+
+
 # Loop through each provided directory.
 for dir in $dirs
 do
@@ -285,49 +306,35 @@ do
   # Check if dir exists.
   full_path=${base_dir}${dir}
   if [ -d "$full_path" ]; then
-    file_list=`ls -t $full_path`
+    file_list=`find $full_path -mindepth 1 -maxdepth 1 $file_types $ignore | sort`
     # Cycle through files, looking for checkable files.
-    for next_file in $file_list
+    for next_filepath in $file_list
     do
-      check_file=
-      next_filepath=$full_path/$next_file
-      if [ "$check_dirs" ]; then
-        # Check if it's a file or directory.
-        if [ -f "$next_filepath" ] || [ -d "$next_filepath" ]; then
-          check_file=1
-        fi
+      next_file=`basename $next_filepath`
+      # stat doesn't work the same on Linux and FreeBSD/Darwin, so
+      # make adjustments here.
+      if [ "$OS_DISTRO" = "Linux" ]; then
+        st_ctime=`stat -c%Y ${next_filepath}`
       else
-        # Check if it's a file.
-        if [ -f "$next_filepath" ]; then
-          check_file=1
-        fi
+        eval $(stat -s ${next_filepath})
       fi
-      if [ "$check_file" ]; then
-        # stat doesn't work the same on Linux and FreeBSD/Darwin, so
-        # make adjustments here.
-        if [ "$OS_DISTRO" = "Linux" ]; then
-          st_ctime=`stat -c%Y ${next_filepath}`
-        else
-          eval $(stat -s ${next_filepath})
-        fi
-        let "FILE_COUNT += 1" > /dev/null
-        let "FILE_AGE = $CURRENT_TIME - $st_ctime" > /dev/null
-        let "FILE_AGE_UNITS = $FILE_AGE / $multiplier" > /dev/null
-        let "MAX_WARN_AGE = $warning * $multiplier" > /dev/null
-        let "MAX_CRIT_AGE = $critical * $multiplier" > /dev/null
-        if [ $FILE_AGE -gt $MAX_CRIT_AGE ]; then
-          let "FILES_CRITICAL += 1" > /dev/null
+      let "FILE_COUNT += 1" > /dev/null
+      let "FILE_AGE = $CURRENT_TIME - $st_ctime" > /dev/null
+      let "FILE_AGE_UNITS = $FILE_AGE / $multiplier" > /dev/null
+      let "MAX_WARN_AGE = $warning * $multiplier" > /dev/null
+      let "MAX_CRIT_AGE = $critical * $multiplier" > /dev/null
+      if [ $FILE_AGE -gt $MAX_CRIT_AGE ]; then
+        let "FILES_CRITICAL += 1" > /dev/null
+        OUTPUT="$OUTPUT ${dir}/${next_file}: ${FILE_AGE_UNITS}${abbreviation}"
+        set_exit_status $STATE_CRITICAL
+      elif [ $FILE_AGE -gt $MAX_WARN_AGE ]; then
+        let "FILES_WARN += 1" > /dev/null
+        OUTPUT="$OUTPUT ${dir}/${next_file}: ${FILE_AGE_UNITS}${abbreviation}"
+        set_exit_status $STATE_WARNING
+      else
+        let "FILES_OK += 1" > /dev/null
+        if [ "$verbose" == "1" ]; then
           OUTPUT="$OUTPUT ${dir}/${next_file}: ${FILE_AGE_UNITS}${abbreviation}"
-          set_exit_status $STATE_CRITICAL
-        elif [ $FILE_AGE -gt $MAX_WARN_AGE ]; then
-          let "FILES_WARN += 1" > /dev/null
-          OUTPUT="$OUTPUT ${dir}/${next_file}: ${FILE_AGE_UNITS}${abbreviation}"
-          set_exit_status $STATE_WARNING
-        else
-          let "FILES_OK += 1" > /dev/null
-          if [ "$verbose" == "1" ]; then
-            OUTPUT="$OUTPUT ${dir}/${next_file}: ${FILE_AGE_UNITS}${abbreviation}"
-          fi
         fi
       fi
     done
