@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 #
 # File ages in a directory plugin for Nagios.
 # Written by Chad Phillips (chad@apartmentlines.com)
