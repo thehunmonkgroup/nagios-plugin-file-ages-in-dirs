@@ -10,7 +10,7 @@ PROGPATH=`dirname $0`
 
 print_usage() {
     echo "
-Usage: check_file_ages_in_dirs --dirs | -d <directories> [-w <max_age>] [-c <max_age>] [-W <num_files>] [-C <num_files>] [-t <time_unit>] [-s] [-V] [--check-dirs] [--base-dir <directory>]
+Usage: check_file_ages_in_dirs --dirs | -d <directories> [-w <max_age>] [-c <max_age>] [-W <num_files>] [-C <num_files>] [-t <time_unit>] [-I] [-s] [-V] [--check-dirs] [--base-dir <directory>]
 Usage: check_file_ages_in_dirs --help | -h
 
 Description:
@@ -45,6 +45,8 @@ The following arguments are accepted:
 
   -t              (Optional) The time unit used for the -w and -c values.  Must
                   be one of: seconds, minutes, hours, days.  Defaults to hours.
+
+  -I              (Optional) A space separated list of files to ignore.
 
   -s              (Optional) Print a summary of OK, Warning and Critical files
                   Cannot be used together with -V (Verbose)
@@ -172,6 +174,10 @@ while test -n "$1"; do
       time_unit=$2
       shift
       ;;
+    -I)
+      files=$2
+      shift
+      ;;      
     -s)
       summary=1
       ;;
@@ -273,6 +279,16 @@ OUTPUT=
 CURRENT_TIME=`date +%s`
 OS_DISTRO=`uname -s`
 
+#build ignore list
+ignore=
+ignore_s="-I "
+for file in $files
+do
+  ignore=1
+  ignore_s="$ignore_s $file"
+done
+
+
 # Loop through each provided directory.
 for dir in $dirs
 do
@@ -285,7 +301,11 @@ do
   # Check if dir exists.
   full_path=${base_dir}${dir}
   if [ -d "$full_path" ]; then
-    file_list=`ls -t $full_path`
+    if [ "$ignore" ]; then
+      file_list=`ls -t $full_path $ignore_s`
+    else
+      file_list=`ls -t $full_path`
+    fi
     # Cycle through files, looking for checkable files.
     for next_file in $file_list
     do
