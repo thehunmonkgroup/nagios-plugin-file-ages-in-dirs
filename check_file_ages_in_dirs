@@ -311,9 +311,9 @@ do
     for next_filepath in $file_list
     do
       next_file=`basename $next_filepath`
-      # stat doesn't work the same on Linux and FreeBSD/Darwin, so
+      # stat doesn't work the same on Linux/Solaris vs. FreeBSD/Darwin, so
       # make adjustments here.
-      if [ "$OS_DISTRO" = "Linux" ]; then
+      if [ "$OS_DISTRO" = "Linux" ] || [ "$OS_DISTRO" = "SunOS" ]; then
         st_ctime=`stat -c%Y ${next_filepath}`
       else
         eval $(stat -s ${next_filepath})
