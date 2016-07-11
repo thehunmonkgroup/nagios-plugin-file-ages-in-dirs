@@ -61,6 +61,8 @@ The following arguments are accepted:
                   check is not recursive.  Without this option, only real files
                   inside the specified directory will be checked.
 
+  --no-hidden     (Optional) If set, hidden files (starting with .*) will be ignored
+
   --base-dir      (Optional) If set, this path will be prepended to all
                   checked directories.
 
@@ -134,6 +136,7 @@ num_warning=0
 num_critical=0
 ignore_files=
 check_dirs=
+no_hidden=
 base_dir=
 
 # Grab the command line arguments.
@@ -187,6 +190,9 @@ while test -n "$1"; do
       ;;
     --check-dirs)
       check_dirs=1
+      ;;
+    --no-hidden)
+      no_hidden=1
       ;;
     --base-dir)
       base_dir=$2
@@ -306,7 +312,11 @@ do
   # Check if dir exists.
   full_path=${base_dir}${dir}
   if [ -d "$full_path" ]; then
-    file_list=`find $full_path -mindepth 1 -maxdepth 1 $file_types $ignore | sort`
+	if [ -n "$no_hidden" ]; then
+    		file_list=`find $full_path -mindepth 1 -maxdepth 1 \( ! -regex '.*/\..*' \) $file_types $ignore | sort`
+	else
+    		file_list=`find $full_path -mindepth 1 -maxdepth 1 $file_types $ignore | sort`
+	fi
     # Cycle through files, looking for checkable files.
     for next_filepath in $file_list
     do
