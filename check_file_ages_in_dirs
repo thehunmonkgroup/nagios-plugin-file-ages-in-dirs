@@ -283,15 +283,17 @@ OS_DISTRO=`uname -s`
 # Build type list.
 file_types="-type f"
 if [ -n "$check_dirs" ]; then
-  file_types="( -type f -or -type d )"
+  file_types="'(' -type f -or -type d ')'"
 fi
 
 # Build ignore list.
 ignore=""
+set -f
 for file in $ignore_files
 do
-  ignore="$ignore ! -name $file"
+  ignore="$ignore ! -name '$file'"
 done
+set +f
 
 
 # Loop through each provided directory.
@@ -306,7 +308,7 @@ do
   # Check if dir exists.
   full_path=${base_dir}${dir}
   if [ -d "$full_path" ]; then
-    file_list=`find $full_path -mindepth 1 -maxdepth 1 $file_types $ignore | sort`
+    file_list=`eval "find $full_path -mindepth 1 -maxdepth 1 $file_types $ignore | sort"`
     # Cycle through files, looking for checkable files.
     for next_filepath in $file_list
     do
