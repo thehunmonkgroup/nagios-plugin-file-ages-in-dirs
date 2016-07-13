@@ -2,7 +2,7 @@
 #
 # File ages in a directory plugin for Nagios.
 # Written by Chad Phillips (chad@apartmentlines.com)
-# Last Modified: 2016-07-11
+# Last Modified: 2016-07-13
 
 PROGPATH=`dirname $0`
 
@@ -46,7 +46,8 @@ The following arguments are accepted:
   -t              (Optional) The time unit used for the -w and -c values.  Must
                   be one of: seconds, minutes, hours, days.  Defaults to hours.
 
-  -I              (Optional) A space separated list of files to ignore.
+  -I              (Optional) A space separated list of files to ignore, globs
+                  are supported.
 
   -s              (Optional) Print a summary of OK, Warning and Critical files
                   Cannot be used together with -V (Verbose)
